@@ -3,7 +3,7 @@
 use crate::{transaction::AccessList, BlobTransactionSidecar, Transaction, TransactionTrait};
 use alloy_consensus::{
     TxEip1559, TxEip2930, TxEip4844, TxEip4844Variant, TxEip4844WithSidecar, TxEip7702, TxEnvelope,
-    TxLegacy, TxType, Typed2718, TypedTransaction,
+    TxGoat, TxLegacy, TxType, Typed2718, TypedTransaction,
 };
 use alloy_eips::eip7702::SignedAuthorization;
 use alloy_network_primitives::{TransactionBuilder4844, TransactionBuilder7702};
@@ -133,6 +133,12 @@ pub struct TransactionRequest {
     /// Authorization list for for EIP-7702 transactions.
     #[cfg_attr(feature = "serde", serde(default, skip_serializing_if = "Option::is_none"))]
     pub authorization_list: Option<Vec<SignedAuthorization>>,
+
+    /// Goat system tx field: module
+    pub module: Option<u8>,
+
+    /// Goat system tx field: action
+    pub action: Option<u8>,
 }
 
 impl TransactionRequest {
@@ -158,6 +164,8 @@ impl TransactionRequest {
         let authorization_list = tx.authorization_list().map(|l| l.to_vec());
         let blob_versioned_hashes = tx.blob_versioned_hashes().map(Vec::from);
         let tx_type = tx.ty();
+        let module = tx.module();
+        let action = tx.action();
 
         // fees depending on the transaction type
         let (gas_price, max_fee_per_gas) = if tx.is_dynamic_fee() {
@@ -184,6 +192,8 @@ impl TransactionRequest {
             transaction_type: Some(tx_type),
             sidecar: None,
             authorization_list,
+            module,
+            action,
         }
     }
 
@@ -456,6 +466,22 @@ impl TransactionRequest {
         })
     }
 
+    /// Build a Goat system transaction.
+    ///
+    /// # Panics
+    ///
+    /// If required fields are missing. Use `complete_goat` to check if the
+    /// request can be built.
+    fn build_goat(self) -> Result<TxGoat, &'static str> {
+        Ok(TxGoat {
+            module: self.module.ok_or("Missing 'module' field for goat transaction.")?,
+            action: self.action.ok_or("Missing 'action' field for goat transaction.")?,
+            nonce: self.nonce.ok_or("Missing 'nonce' field for goat transaction.")?,
+            input: self.input.into_input().unwrap_or_default(),
+            ..Default::default()
+        })
+    }
+
     fn check_reqd_fields(&self) -> Vec<&'static str> {
         let mut missing = Vec::with_capacity(12);
         if self.nonce.is_none() {
@@ -526,6 +552,17 @@ impl TransactionRequest {
                 self.blob_versioned_hashes = None;
                 self.sidecar = None;
             }
+            TxType::Goat => {
+                self.max_fee_per_gas = None;
+                self.max_priority_fee_per_gas = None;
+                self.max_fee_per_blob_gas = None;
+                self.blob_versioned_hashes = None;
+                self.sidecar = None;
+                self.access_list = None;
+                self.authorization_list = None;
+                self.gas_price = None;
+                self.blob_versioned_hashes = None;
+            }
         }
     }
 
@@ -565,6 +602,7 @@ impl TransactionRequest {
             TxType::Eip1559 => self.complete_1559(),
             TxType::Eip4844 => self.complete_4844(),
             TxType::Eip7702 => self.complete_7702(),
+            TxType::Goat => self.complete_goat(),
         } {
             Err((pref, missing))
         } else {
@@ -645,6 +683,30 @@ impl TransactionRequest {
         }
     }
 
+    /// Check if all necessary keys are present to build a Goat system transaction,
+    /// returning a list of keys that are missing.
+    pub fn complete_goat(&self) -> Result<(), Vec<&'static str>> {
+        let mut missing = Vec::with_capacity(12);
+        if self.module.is_none() {
+            missing.push("module");
+        }
+        if self.action.is_none() {
+            missing.push("action");
+        }
+        if self.nonce.is_none() {
+            missing.push("nonce");
+        }
+        if self.input.input.is_none() && self.input.data.is_none() {
+            missing.push("input");
+        }
+
+        if missing.is_empty() {
+            Ok(())
+        } else {
+            Err(missing)
+        }
+    }
+
     /// Check if all necessary keys are present to build a legacy transaction,
     /// returning a list of keys that are missing.
     pub fn complete_legacy(&self) -> Result<(), Vec<&'static str>> {
@@ -668,6 +730,7 @@ impl TransactionRequest {
             TxType::Eip1559 => self.complete_1559().ok(),
             TxType::Eip4844 => self.complete_4844().ok(),
             TxType::Eip7702 => self.complete_7702().ok(),
+            TxType::Goat => self.complete_goat().ok(),
         }?;
         Some(pref)
     }
@@ -688,6 +751,7 @@ impl TransactionRequest {
             // `sidecar` is a hard requirement since this must be a _sendable_ transaction.
             TxType::Eip4844 => self.build_4844_with_sidecar().expect("checked)").into(),
             TxType::Eip7702 => self.build_7702().expect("checked)").into(),
+            TxType::Goat => self.build_goat().expect("checked)").into(),
         })
     }
 
@@ -709,6 +773,7 @@ impl TransactionRequest {
             TxType::Eip1559 => self.clone().build_1559().map(Into::into),
             TxType::Eip4844 => self.clone().build_4844_variant().map(Into::into),
             TxType::Eip7702 => self.clone().build_7702().map(Into::into),
+            TxType::Goat => self.clone().build_goat().map(Into::into),
         }
         .map_err(|msg| self.into_tx_err(msg))
     }
@@ -905,6 +970,20 @@ impl From<TxEip7702> for TransactionRequest {
     }
 }
 
+impl From<TxGoat> for TransactionRequest {
+    fn from(tx: TxGoat) -> Self {
+        let ty = tx.ty();
+        Self {
+            module: Some(tx.module),
+            action: Some(tx.action),
+            nonce: Some(tx.nonce),
+            input: TransactionInput { input: Some(tx.input), data: None },
+            transaction_type: Some(ty),
+            ..Default::default()
+        }
+    }
+}
+
 impl From<TypedTransaction> for TransactionRequest {
     fn from(tx: TypedTransaction) -> Self {
         match tx {
@@ -913,6 +992,7 @@ impl From<TypedTransaction> for TransactionRequest {
             TypedTransaction::Eip1559(tx) => tx.into(),
             TypedTransaction::Eip4844(tx) => tx.into(),
             TypedTransaction::Eip7702(tx) => tx.into(),
+            TypedTransaction::Goat(tx) => tx.into(),
         }
     }
 }
@@ -989,6 +1069,23 @@ impl From<TxEnvelope> for TransactionRequest {
                 }
             }
             TxEnvelope::Eip7702(tx) => {
+                #[cfg(feature = "k256")]
+                {
+                    let from = tx.recover_signer().ok();
+                    let tx: Self = tx.strip_signature().into();
+                    if let Some(from) = from {
+                        tx.from(from)
+                    } else {
+                        tx
+                    }
+                }
+
+                #[cfg(not(feature = "k256"))]
+                {
+                    tx.strip_signature().into()
+                }
+            }
+            TxEnvelope::Goat(tx) => {
                 #[cfg(feature = "k256")]
                 {
                     let from = tx.recover_signer().ok();
@@ -1186,11 +1283,11 @@ mod tests {
     fn serde_tx_chain_id_field() {
         let chain_id: ChainId = 12345678;
 
-        let chain_id_as_num = format!(r#"{{"chainId": {} }}"#, chain_id);
+        let chain_id_as_num = format!(r#"{{"chainId": {chain_id} }}"#);
         let req1 = serde_json::from_str::<TransactionRequest>(&chain_id_as_num).unwrap();
         assert_eq!(req1.chain_id.unwrap(), chain_id);
 
-        let chain_id_as_hex = format!(r#"{{"chainId": "0x{:x}" }}"#, chain_id);
+        let chain_id_as_hex = format!(r#"{{"chainId": "0x{chain_id:x}" }}"#);
         let req2 = serde_json::from_str::<TransactionRequest>(&chain_id_as_hex).unwrap();
         assert_eq!(req2.chain_id.unwrap(), chain_id);
     }

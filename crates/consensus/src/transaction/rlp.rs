@@ -74,6 +74,13 @@ pub trait RlpEcdsaEncodableTx: Sized + Typed2718 {
         self.eip2718_encode_with_type(signature, self.ty(), out);
     }
 
+    /// Goat encode the transaction with the given signature and the default
+    /// type flag.
+    fn goat_encode(&self, signature: &Signature, out: &mut dyn BufMut) {
+        out.put_u8(self.ty());
+        self.rlp_encode_signed(signature, out);
+    }
+
     /// Create an rlp header for the network encoded transaction. This will
     /// usually be a string header, however, legacy transactions' network
     /// encoding is a list.

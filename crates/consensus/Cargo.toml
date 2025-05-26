@@ -29,6 +29,8 @@ alloy-rlp.workspace = true
 alloy-trie = { workspace = true, features = ["ethereum"] }
 alloy-serde = { workspace = true, optional = true }
 
+bytes = "1.10"
+
 # k256
 k256 = { workspace = true, features = ["ecdsa"], optional = true }
 

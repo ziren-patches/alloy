@@ -110,7 +110,7 @@ impl EthereumWallet {
     ) -> alloy_signer::Result<Signature> {
         self.signer_by_address(sender)
             .ok_or_else(|| {
-                alloy_signer::Error::other(format!("Missing signing credential for {}", sender))
+                alloy_signer::Error::other(format!("Missing signing credential for {sender}"))
             })?
             .sign_transaction(tx)
             .await
@@ -157,6 +157,10 @@ where
                 Ok(t.into_signed(sig).into())
             }
             TypedTransaction::Eip7702(mut t) => {
+                let sig = self.sign_transaction_inner(sender, &mut t).await?;
+                Ok(t.into_signed(sig).into())
+            }
+            TypedTransaction::Goat(mut t) => {
                 let sig = self.sign_transaction_inner(sender, &mut t).await?;
                 Ok(t.into_signed(sig).into())
             }
