@@ -151,7 +151,7 @@ impl Transaction for TxGoat {
 
     #[inline]
     fn kind(&self) -> TxKind {
-        self.to().into()
+        self.inner.to().into()
     }
 
     #[inline]
