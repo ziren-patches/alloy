@@ -10,6 +10,10 @@ pub use super::goat_types::*;
 use super::{RlpEcdsaDecodableTx, RlpEcdsaEncodableTx};
 use crate::{SignableTransaction, Transaction, TxType};
 
+const GOAT_CHAIN_ID: u64 = 2345;
+ #[cfg(feature = "goat-testnet")]
+const GOAT_TESTNET_CHAIN_ID: u64 = 48816;
+
 /// A transaction with a priority fee (Goat).
 #[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
 #[cfg_attr(any(test, feature = "arbitrary"), derive(arbitrary::Arbitrary))]
@@ -28,6 +32,9 @@ pub struct TxGoat {
 
     #[cfg_attr(feature = "serde", serde(skip))]
     pub inner: TxGoatInner,
+
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub chain_id: u64,
 }
 
 impl TxGoat {
@@ -95,14 +102,19 @@ impl RlpEcdsaDecodableTx for TxGoat {
         let buf = &mut input.0.as_ref();
         let inner = decode_goat_tx(module, action, buf)?;
 
-        Ok(Self { module, action, nonce, input, inner })
+        Ok(Self { module, action, nonce, input, inner, chain_id: GOAT_CHAIN_ID })
     }
 }
 
 impl Transaction for TxGoat {
     #[inline]
     fn chain_id(&self) -> Option<ChainId> {
-        Some(2345)
+        Some(
+            #[cfg(feature = "goat-testnet")]
+            GOAT_TESTNET_CHAIN_ID,
+            #[cfg(not(feature = "goat-testnet"))]
+            GOAT_CHAIN_ID,
+        )
     }
 
     #[inline]
@@ -216,7 +228,9 @@ impl Transaction for TxGoat {
 }
 
 impl SignableTransaction<Signature> for TxGoat {
-    fn set_chain_id(&mut self, _chain_id: ChainId) {}
+    fn set_chain_id(&mut self, chain_id: ChainId) {
+        self.chain_id = chain_id;
+    }
 
     fn encode_for_signing(&self, out: &mut dyn alloy_rlp::BufMut) {
         out.put_u8(GOAT_TX_TYPE_ID);
@@ -284,6 +298,8 @@ pub(super) mod serde_bincode_compat {
         input: Cow<'a, Bytes>,
         #[serde(skip)]
         pub inner: TxGoatInner,
+        #[serde[skip]]
+        pub chain_id: u64,
     }
 
     impl<'a> From<&'a super::TxGoat> for TxGoat<'a> {
@@ -294,6 +310,7 @@ pub(super) mod serde_bincode_compat {
                 nonce: value.nonce,
                 input: Cow::Borrowed(&value.input),
                 inner: value.inner.clone(),
+                chain_id: value.chain_id,
             }
         }
     }
@@ -306,6 +323,7 @@ pub(super) mod serde_bincode_compat {
                 nonce: value.nonce,
                 input: value.input.into_owned(),
                 inner: value.inner,
+                chain_id: value.chain_id,
             }
         }
     }
