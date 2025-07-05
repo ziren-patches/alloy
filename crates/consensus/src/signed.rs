@@ -145,6 +145,11 @@ where
         self.tx.eip2718_encode(&self.signature, out);
     }
 
+    /// Goat encode the signed transaction.
+    pub fn goat_encode(&self, out: &mut dyn BufMut) {
+        self.tx.goat_encode(&self.signature, out);
+    }
+
     /// Get the length of the transaction when network encoded.
     pub fn network_encoded_length(&self) -> usize {
         self.tx.network_encoded_length(&self.signature)

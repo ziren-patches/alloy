@@ -22,6 +22,7 @@ impl PooledTransaction {
             Self::Eip1559(tx) => tx.into(),
             Self::Eip7702(tx) => tx.into(),
             Self::Eip4844(tx) => tx.into(),
+            Self::Goat(tx) => tx.into(),
         }
     }
 }

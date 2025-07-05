@@ -1959,7 +1959,7 @@ mod tests {
             }
             Err(e) => {
                 assert_eq!(
-                    format!("{}",e),
+                    format!("{e}"),
                     "hyper not supported by BuiltinConnectionString. Please instantiate a hyper client manually"
                 );
             }
