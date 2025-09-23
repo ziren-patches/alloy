@@ -1,3 +1,4 @@
+#![allow(missing_docs)]
 #![doc = include_str!("../README.md")]
 #![doc(
     html_logo_url = "https://raw.githubusercontent.com/alloy-rs/core/main/assets/alloy.jpg",
@@ -40,7 +41,7 @@ pub use transaction::BlobTransactionValidationError;
 pub use transaction::{
     EthereumTxEnvelope, EthereumTypedTransaction, SignableTransaction, Transaction,
     TransactionEnvelope, TxEip1559, TxEip2930, TxEip4844, TxEip4844Variant, TxEip4844WithSidecar,
-    TxEip7702, TxEnvelope, TxLegacy, TxType, TypedTransaction,
+    TxEip7702, TxEnvelope, TxGoat, TxLegacy, TxType, TypedTransaction,
 };
 
 pub use alloy_eips::{
