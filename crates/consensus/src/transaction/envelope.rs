@@ -6,7 +6,7 @@ use crate::{
         RlpEcdsaEncodableTx, TxHashRef,
     },
     EthereumTypedTransaction, Signed, TransactionEnvelope, TxEip1559, TxEip2930,
-    TxEip4844WithSidecar, TxEip7702, TxLegacy,
+    TxEip4844WithSidecar, TxEip7702, TxGoat, TxLegacy,
 };
 use alloy_eips::{eip2718::Encodable2718, eip7594::Encodable7594};
 use alloy_primitives::{Bytes, Signature, B256};
@@ -39,6 +39,10 @@ impl<T: Encodable7594> EthereumTxEnvelope<TxEip4844Variant<T>> {
             Self::Eip1559(tx) => Ok(tx.into()),
             Self::Eip4844(tx) => EthereumTxEnvelope::try_from(tx).map_err(ValueError::convert),
             Self::Eip7702(tx) => Ok(tx.into()),
+            Self::Goat(tx) => Err(ValueError::new_static(
+                tx.into(),
+                "should not convert the goat tx into the pooled variant",
+            )),
         }
     }
 }
@@ -59,6 +63,7 @@ impl EthereumTxEnvelope<TxEip4844> {
                 Err(ValueError::new(tx.into(), "pooled transaction requires 4844 sidecar"))
             }
             Self::Eip7702(tx) => Ok(tx.into()),
+            Self::Goat(tx) => Ok(tx.into()),
         }
     }
 
@@ -129,6 +134,7 @@ impl<T> EthereumTxEnvelope<T> {
             Self::Eip1559(tx) => EthereumTypedTransaction::Eip1559(tx.into_parts().0),
             Self::Eip4844(tx) => EthereumTypedTransaction::Eip4844(tx.into_parts().0),
             Self::Eip7702(tx) => EthereumTypedTransaction::Eip7702(tx.into_parts().0),
+            Self::Goat(tx) => EthereumTypedTransaction::Goat(tx.into_parts().0),
         }
     }
 
@@ -144,6 +150,7 @@ impl<T> EthereumTxEnvelope<T> {
             Self::Legacy(tx) => &mut tx.tx_mut().input,
             Self::Eip7702(tx) => &mut tx.tx_mut().input,
             Self::Eip4844(tx) => &mut tx.tx_mut().as_mut().input,
+            Self::Goat(tx) => &mut tx.tx_mut().input,
         }
     }
 }
@@ -184,6 +191,9 @@ pub enum EthereumTxEnvelope<Eip4844> {
     /// A [`TxEip7702`] tagged with type 4.
     #[envelope(ty = 4)]
     Eip7702(Signed<TxEip7702>),
+    /// A [`TxGoat`] tagged with type 5.
+    #[envelope(ty = 5)]
+    Goat(Signed<TxGoat>),
 }
 
 impl<T, Eip4844> From<Signed<T>> for EthereumTxEnvelope<Eip4844>
@@ -214,6 +224,10 @@ where
             EthereumTypedTransaction::Eip7702(tx_eip7702) => {
                 let tx = Signed::new_unchecked(tx_eip7702, sig, hash);
                 Self::Eip7702(tx)
+            }
+            EthereumTypedTransaction::Goat(tx_goat) => {
+                let tx = Signed::new_unchecked(tx_goat, sig, hash);
+                Self::Goat(tx)
             }
         }
     }
@@ -268,6 +282,7 @@ impl<Eip4844> EthereumTxEnvelope<Eip4844> {
             Self::Eip1559(tx) => EthereumTxEnvelope::Eip1559(tx),
             Self::Eip4844(tx) => EthereumTxEnvelope::Eip4844(tx.map(f)),
             Self::Eip7702(tx) => EthereumTxEnvelope::Eip7702(tx),
+            Self::Goat(tx) => EthereumTxEnvelope::Goat(tx),
         }
     }
 
@@ -280,6 +295,7 @@ impl<Eip4844> EthereumTxEnvelope<Eip4844> {
             Self::Eip1559(_) => TxType::Eip1559,
             Self::Eip4844(_) => TxType::Eip4844,
             Self::Eip7702(_) => TxType::Eip7702,
+            Self::Goat(_) => TxType::Goat,
         }
     }
 
@@ -294,6 +310,7 @@ impl<Eip4844> EthereumTxEnvelope<Eip4844> {
             Self::Eip1559(tx) => tx.convert(),
             Self::Eip4844(tx) => tx.convert(),
             Self::Eip7702(tx) => tx.convert(),
+            Self::Goat(tx) => tx.convert(),
         }
     }
 }
@@ -327,6 +344,12 @@ impl<Eip4844: RlpEcdsaEncodableTx> EthereumTxEnvelope<Eip4844> {
     #[inline]
     pub const fn is_eip7702(&self) -> bool {
         matches!(self, Self::Eip7702(_))
+    }
+
+    /// Returns true if the transaction type is Goat.
+    #[inline]
+    pub const fn is_goat(&self) -> bool {
+        matches!(self, Self::Goat(_))
     }
 
     /// Returns true if the transaction is replay protected.
@@ -385,6 +408,14 @@ impl<Eip4844: RlpEcdsaEncodableTx> EthereumTxEnvelope<Eip4844> {
         }
     }
 
+    /// Returns the [`TxGoat`] variant if the transaction is a Goat system transaction.
+    pub const fn as_goat(&self) -> Option<&Signed<TxGoat>> {
+        match self {
+            Self::Goat(tx) => Some(tx),
+            _ => None,
+        }
+    }
+
     /// Calculate the signing hash for the transaction.
     pub fn signature_hash(&self) -> B256
     where
@@ -396,6 +427,7 @@ impl<Eip4844: RlpEcdsaEncodableTx> EthereumTxEnvelope<Eip4844> {
             Self::Eip1559(tx) => tx.signature_hash(),
             Self::Eip4844(tx) => tx.signature_hash(),
             Self::Eip7702(tx) => tx.signature_hash(),
+            Self::Goat(tx) => tx.signature_hash(),
         }
     }
 
@@ -407,6 +439,7 @@ impl<Eip4844: RlpEcdsaEncodableTx> EthereumTxEnvelope<Eip4844> {
             Self::Eip1559(tx) => tx.signature(),
             Self::Eip4844(tx) => tx.signature(),
             Self::Eip7702(tx) => tx.signature(),
+            Self::Goat(tx) => tx.signature(),
         }
     }
 
@@ -419,6 +452,7 @@ impl<Eip4844: RlpEcdsaEncodableTx> EthereumTxEnvelope<Eip4844> {
             Self::Eip1559(tx) => tx.hash(),
             Self::Eip4844(tx) => tx.hash(),
             Self::Eip7702(tx) => tx.hash(),
+            Self::Goat(tx) => tx.hash(),
         }
     }
 
@@ -430,6 +464,7 @@ impl<Eip4844: RlpEcdsaEncodableTx> EthereumTxEnvelope<Eip4844> {
             Self::Eip1559(tx) => tx.hash(),
             Self::Eip7702(tx) => tx.hash(),
             Self::Eip4844(tx) => tx.hash(),
+            Self::Goat(tx) => tx.hash(),
         }
     }
 
@@ -441,6 +476,7 @@ impl<Eip4844: RlpEcdsaEncodableTx> EthereumTxEnvelope<Eip4844> {
             Self::Eip1559(t) => t.eip2718_encoded_length(),
             Self::Eip4844(t) => t.eip2718_encoded_length(),
             Self::Eip7702(t) => t.eip2718_encoded_length(),
+            Self::Goat(t) => t.eip2718_encoded_length(),
         }
     }
 }
@@ -463,6 +499,7 @@ where
             Self::Eip1559(tx) => crate::transaction::SignerRecoverable::recover_signer(tx),
             Self::Eip4844(tx) => crate::transaction::SignerRecoverable::recover_signer(tx),
             Self::Eip7702(tx) => crate::transaction::SignerRecoverable::recover_signer(tx),
+            Self::Goat(tx) => crate::transaction::SignerRecoverable::recover_signer(tx),
         }
     }
 
@@ -483,6 +520,7 @@ where
             Self::Eip7702(tx) => {
                 crate::transaction::SignerRecoverable::recover_signer_unchecked(tx)
             }
+            Self::Goat(tx) => crate::transaction::SignerRecoverable::recover_signer_unchecked(tx),
         }
     }
 
@@ -504,6 +542,9 @@ where
                 crate::transaction::SignerRecoverable::recover_unchecked_with_buf(tx, buf)
             }
             Self::Eip7702(tx) => {
+                crate::transaction::SignerRecoverable::recover_unchecked_with_buf(tx, buf)
+            }
+            Self::Goat(tx) => {
                 crate::transaction::SignerRecoverable::recover_unchecked_with_buf(tx, buf)
             }
         }
@@ -581,6 +622,13 @@ pub mod serde_bincode_compat {
                             tx.tx().into(),
                         ),
                 },
+                super::EthereumTxEnvelope::Goat(tx) => Self {
+                    signature: *tx.signature(),
+                    transaction:
+                        crate::serde_bincode_compat::transaction::EthereumTypedTransaction::Goat(
+                            tx.tx().into(),
+                        ),
+                },
             }
         }
     }
@@ -598,6 +646,7 @@ pub mod serde_bincode_compat {
                     Self::Eip4844(Signed::new_unhashed(tx, signature))
                 }
                 EthereumTypedTransaction::Eip7702(tx) => Signed::new_unhashed(tx, signature).into(),
+                EthereumTypedTransaction::Goat(tx) => Signed::new_unhashed(tx, signature).into(),
             }
         }
     }
@@ -1274,6 +1323,7 @@ mod tests {
         assert_eq!(TxType::try_from(2u8).unwrap(), TxType::Eip1559);
         assert_eq!(TxType::try_from(3u8).unwrap(), TxType::Eip4844);
         assert_eq!(TxType::try_from(4u8).unwrap(), TxType::Eip7702);
+        assert_eq!(TxType::try_from(0x60u8).unwrap(), TxType::Goat);
         assert!(TxType::try_from(5u8).is_err()); // Invalid case
     }
 
@@ -1284,6 +1334,7 @@ mod tests {
         assert_eq!(TxType::try_from(2u64).unwrap(), TxType::Eip1559);
         assert_eq!(TxType::try_from(3u64).unwrap(), TxType::Eip4844);
         assert_eq!(TxType::try_from(4u64).unwrap(), TxType::Eip7702);
+        assert_eq!(TxType::try_from(0x60u64).unwrap(), TxType::Goat);
         assert!(TxType::try_from(10u64).is_err()); // Invalid case
     }
 

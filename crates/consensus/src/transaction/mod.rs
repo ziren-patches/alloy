@@ -7,6 +7,8 @@ use alloy_primitives::{keccak256, Address, Bytes, ChainId, Selector, TxHash, TxK
 use auto_impl::auto_impl;
 use core::{any, fmt};
 
+use crate::transaction::goat_types::Mint;
+
 mod eip1559;
 pub use eip1559::TxEip1559;
 
@@ -15,6 +17,12 @@ pub use eip2930::TxEip2930;
 
 mod eip7702;
 pub use eip7702::TxEip7702;
+
+mod goat;
+pub use goat::{TxGoat, TxGoatInner};
+
+/// Goat types.
+pub mod goat_types;
 
 mod envelope;
 #[cfg(all(feature = "serde", feature = "serde-bincode-compat"))]
@@ -69,7 +77,8 @@ pub mod serde_bincode_compat {
     pub use super::{
         eip1559::serde_bincode_compat::*, eip2930::serde_bincode_compat::*,
         eip7702::serde_bincode_compat::*, envelope::serde_bincode_compat::*,
-        legacy::serde_bincode_compat::*, typed::serde_bincode_compat::*,
+        goat::serde_bincode_compat::*, legacy::serde_bincode_compat::*,
+        typed::serde_bincode_compat::*,
     };
 }
 
@@ -224,6 +233,36 @@ pub trait Transaction: Typed2718 + fmt::Debug + any::Any + Send + Sync + 'static
     /// Returns `None` for non-eip7702 transactions.
     fn authorization_count(&self) -> Option<u64> {
         self.authorization_list().map(|auths| auths.len() as u64)
+    }
+
+    /// Tx sender
+    fn caller(&self) -> Option<Address> {
+        None
+    }
+
+    /// Returns module of goat system tx
+    fn module(&self) -> Option<u8> {
+        None
+    }
+
+    /// Returns action of goat system tx
+    fn action(&self) -> Option<u8> {
+        None
+    }
+
+    /// Returns deposit of goat system tx
+    fn deposit(&self) -> Option<Mint> {
+        None
+    }
+
+    /// Returns withdrawal of goat system tx
+    fn withdraw(&self) -> Option<Mint> {
+        None
+    }
+
+    /// Returns whether it is a goat system tx
+    fn is_goat_tx(&self) -> bool {
+        false
     }
 }
 

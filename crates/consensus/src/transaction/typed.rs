@@ -4,7 +4,7 @@ use crate::{
         eip4844::{TxEip4844, TxEip4844Variant, TxEip4844WithSidecar},
         RlpEcdsaEncodableTx,
     },
-    EthereumTxEnvelope, SignableTransaction, Transaction, TxEip1559, TxEip2930, TxEip7702,
+    EthereumTxEnvelope, SignableTransaction, Transaction, TxEip1559, TxEip2930, TxEip7702, TxGoat,
     TxLegacy, TxType,
 };
 use alloy_eips::{
@@ -58,6 +58,9 @@ pub enum EthereumTypedTransaction<Eip4844> {
     /// EIP-7702 transaction
     #[cfg_attr(feature = "serde", serde(rename = "0x04", alias = "0x4"))]
     Eip7702(TxEip7702),
+    /// Goat system transaction
+    #[cfg_attr(feature = "serde", serde(rename = "0x60", alias = "0x60"))]
+    Goat(TxGoat),
 }
 
 impl<Eip4844> From<TxLegacy> for EthereumTypedTransaction<Eip4844> {
@@ -81,6 +84,12 @@ impl<Eip4844> From<TxEip1559> for EthereumTypedTransaction<Eip4844> {
 impl<Eip4844: From<TxEip4844>> From<TxEip4844> for EthereumTypedTransaction<Eip4844> {
     fn from(tx: TxEip4844) -> Self {
         Self::Eip4844(tx.into())
+    }
+}
+
+impl<Eip4844> From<TxGoat> for EthereumTypedTransaction<Eip4844> {
+    fn from(tx: TxGoat) -> Self {
+        Self::Goat(tx)
     }
 }
 
@@ -114,6 +123,7 @@ impl<Eip4844> From<EthereumTxEnvelope<Eip4844>> for EthereumTypedTransaction<Eip
             EthereumTxEnvelope::Eip1559(tx) => Self::Eip1559(tx.strip_signature()),
             EthereumTxEnvelope::Eip4844(tx) => Self::Eip4844(tx.strip_signature()),
             EthereumTxEnvelope::Eip7702(tx) => Self::Eip7702(tx.strip_signature()),
+            EthereumTxEnvelope::Goat(tx) => Self::Goat(tx.strip_signature()),
         }
     }
 }
@@ -154,6 +164,7 @@ impl<Eip4844> EthereumTypedTransaction<Eip4844> {
             Self::Eip1559(tx) => EthereumTypedTransaction::Eip1559(tx),
             Self::Eip4844(tx) => EthereumTypedTransaction::Eip4844(f(tx)),
             Self::Eip7702(tx) => EthereumTypedTransaction::Eip7702(tx),
+            Self::Goat(tx) => EthereumTypedTransaction::Goat(tx),
         }
     }
 }
@@ -168,6 +179,7 @@ impl<Eip4844: RlpEcdsaEncodableTx> EthereumTypedTransaction<Eip4844> {
             Self::Eip1559(_) => TxType::Eip1559,
             Self::Eip4844(_) => TxType::Eip4844,
             Self::Eip7702(_) => TxType::Eip7702,
+            Self::Goat(_) => TxType::Goat,
         }
     }
 
@@ -199,6 +211,14 @@ impl<Eip4844: RlpEcdsaEncodableTx> EthereumTypedTransaction<Eip4844> {
     pub const fn eip7702(&self) -> Option<&TxEip7702> {
         match self {
             Self::Eip7702(tx) => Some(tx),
+            _ => None,
+        }
+    }
+
+    /// Return the inner Goat system transaction if it exists.
+    pub const fn goat(&self) -> Option<&TxGoat> {
+        match self {
+            Self::Goat(tx) => Some(tx),
             _ => None,
         }
     }
@@ -235,6 +255,15 @@ impl<Eip4844: RlpEcdsaEncodableTx> EthereumTypedTransaction<Eip4844> {
         }
     }
 
+    /// Consumes the type and returns the Goat system transaction if this transaction is of that
+    /// type.
+    pub fn try_into_goat(self) -> Result<TxGoat, ValueError<Self>> {
+        match self {
+            Self::Goat(tx) => Ok(tx),
+            _ => Err(ValueError::new(self, "Expected Goat system transaction")),
+        }
+    }
+
     /// Calculate the transaction hash for the given signature.
     pub fn tx_hash(&self, signature: &Signature) -> TxHash {
         match self {
@@ -243,6 +272,7 @@ impl<Eip4844: RlpEcdsaEncodableTx> EthereumTypedTransaction<Eip4844> {
             Self::Eip1559(tx) => tx.tx_hash(signature),
             Self::Eip4844(tx) => tx.tx_hash(signature),
             Self::Eip7702(tx) => tx.tx_hash(signature),
+            Self::Goat(tx) => tx.tx_hash(signature),
         }
     }
 }
@@ -256,6 +286,7 @@ impl<Eip4844: Transaction> Transaction for EthereumTypedTransaction<Eip4844> {
             Self::Eip1559(tx) => tx.chain_id(),
             Self::Eip4844(tx) => tx.chain_id(),
             Self::Eip7702(tx) => tx.chain_id(),
+            Self::Goat(tx) => tx.chain_id(),
         }
     }
 
@@ -267,6 +298,7 @@ impl<Eip4844: Transaction> Transaction for EthereumTypedTransaction<Eip4844> {
             Self::Eip1559(tx) => tx.nonce(),
             Self::Eip4844(tx) => tx.nonce(),
             Self::Eip7702(tx) => tx.nonce(),
+            Self::Goat(tx) => tx.nonce(),
         }
     }
 
@@ -278,6 +310,7 @@ impl<Eip4844: Transaction> Transaction for EthereumTypedTransaction<Eip4844> {
             Self::Eip1559(tx) => tx.gas_limit(),
             Self::Eip4844(tx) => tx.gas_limit(),
             Self::Eip7702(tx) => tx.gas_limit(),
+            Self::Goat(tx) => tx.gas_limit(),
         }
     }
 
@@ -289,6 +322,7 @@ impl<Eip4844: Transaction> Transaction for EthereumTypedTransaction<Eip4844> {
             Self::Eip1559(tx) => tx.gas_price(),
             Self::Eip4844(tx) => tx.gas_price(),
             Self::Eip7702(tx) => tx.gas_price(),
+            Self::Goat(tx) => tx.gas_price(),
         }
     }
 
@@ -300,6 +334,7 @@ impl<Eip4844: Transaction> Transaction for EthereumTypedTransaction<Eip4844> {
             Self::Eip1559(tx) => tx.max_fee_per_gas(),
             Self::Eip4844(tx) => tx.max_fee_per_gas(),
             Self::Eip7702(tx) => tx.max_fee_per_gas(),
+            Self::Goat(tx) => tx.max_fee_per_gas(),
         }
     }
 
@@ -311,6 +346,7 @@ impl<Eip4844: Transaction> Transaction for EthereumTypedTransaction<Eip4844> {
             Self::Eip1559(tx) => tx.max_priority_fee_per_gas(),
             Self::Eip4844(tx) => tx.max_priority_fee_per_gas(),
             Self::Eip7702(tx) => tx.max_priority_fee_per_gas(),
+            Self::Goat(tx) => tx.max_priority_fee_per_gas(),
         }
     }
 
@@ -322,6 +358,7 @@ impl<Eip4844: Transaction> Transaction for EthereumTypedTransaction<Eip4844> {
             Self::Eip1559(tx) => tx.max_fee_per_blob_gas(),
             Self::Eip4844(tx) => tx.max_fee_per_blob_gas(),
             Self::Eip7702(tx) => tx.max_fee_per_blob_gas(),
+            Self::Goat(tx) => tx.max_fee_per_blob_gas(),
         }
     }
 
@@ -333,6 +370,7 @@ impl<Eip4844: Transaction> Transaction for EthereumTypedTransaction<Eip4844> {
             Self::Eip1559(tx) => tx.priority_fee_or_price(),
             Self::Eip4844(tx) => tx.priority_fee_or_price(),
             Self::Eip7702(tx) => tx.priority_fee_or_price(),
+            Self::Goat(tx) => tx.priority_fee_or_price(),
         }
     }
 
@@ -343,6 +381,7 @@ impl<Eip4844: Transaction> Transaction for EthereumTypedTransaction<Eip4844> {
             Self::Eip1559(tx) => tx.effective_gas_price(base_fee),
             Self::Eip4844(tx) => tx.effective_gas_price(base_fee),
             Self::Eip7702(tx) => tx.effective_gas_price(base_fee),
+            Self::Goat(tx) => tx.effective_gas_price(base_fee),
         }
     }
 
@@ -354,6 +393,7 @@ impl<Eip4844: Transaction> Transaction for EthereumTypedTransaction<Eip4844> {
             Self::Eip1559(tx) => tx.is_dynamic_fee(),
             Self::Eip4844(tx) => tx.is_dynamic_fee(),
             Self::Eip7702(tx) => tx.is_dynamic_fee(),
+            Self::Goat(tx) => tx.is_dynamic_fee(),
         }
     }
 
@@ -365,6 +405,7 @@ impl<Eip4844: Transaction> Transaction for EthereumTypedTransaction<Eip4844> {
             Self::Eip1559(tx) => tx.kind(),
             Self::Eip4844(tx) => tx.kind(),
             Self::Eip7702(tx) => tx.kind(),
+            Self::Goat(tx) => tx.kind(),
         }
     }
 
@@ -376,6 +417,7 @@ impl<Eip4844: Transaction> Transaction for EthereumTypedTransaction<Eip4844> {
             Self::Eip1559(tx) => tx.is_create(),
             Self::Eip4844(tx) => tx.is_create(),
             Self::Eip7702(tx) => tx.is_create(),
+            Self::Goat(tx) => tx.is_create(),
         }
     }
 
@@ -387,6 +429,7 @@ impl<Eip4844: Transaction> Transaction for EthereumTypedTransaction<Eip4844> {
             Self::Eip1559(tx) => tx.value(),
             Self::Eip4844(tx) => tx.value(),
             Self::Eip7702(tx) => tx.value(),
+            Self::Goat(tx) => tx.value(),
         }
     }
 
@@ -398,6 +441,7 @@ impl<Eip4844: Transaction> Transaction for EthereumTypedTransaction<Eip4844> {
             Self::Eip1559(tx) => tx.input(),
             Self::Eip4844(tx) => tx.input(),
             Self::Eip7702(tx) => tx.input(),
+            Self::Goat(tx) => tx.input(),
         }
     }
 
@@ -409,6 +453,7 @@ impl<Eip4844: Transaction> Transaction for EthereumTypedTransaction<Eip4844> {
             Self::Eip1559(tx) => tx.access_list(),
             Self::Eip4844(tx) => tx.access_list(),
             Self::Eip7702(tx) => tx.access_list(),
+            Self::Goat(tx) => tx.access_list(),
         }
     }
 
@@ -420,6 +465,7 @@ impl<Eip4844: Transaction> Transaction for EthereumTypedTransaction<Eip4844> {
             Self::Eip1559(tx) => tx.blob_versioned_hashes(),
             Self::Eip4844(tx) => tx.blob_versioned_hashes(),
             Self::Eip7702(tx) => tx.blob_versioned_hashes(),
+            Self::Goat(tx) => tx.blob_versioned_hashes(),
         }
     }
 
@@ -431,6 +477,7 @@ impl<Eip4844: Transaction> Transaction for EthereumTypedTransaction<Eip4844> {
             Self::Eip1559(tx) => tx.authorization_list(),
             Self::Eip4844(tx) => tx.authorization_list(),
             Self::Eip7702(tx) => tx.authorization_list(),
+            Self::Goat(tx) => tx.authorization_list(),
         }
     }
 }
@@ -443,6 +490,7 @@ impl<Eip4844: Typed2718> Typed2718 for EthereumTypedTransaction<Eip4844> {
             Self::Eip1559(tx) => tx.ty(),
             Self::Eip4844(tx) => tx.ty(),
             Self::Eip7702(tx) => tx.ty(),
+            Self::Goat(tx) => tx.ty(),
         }
     }
 }
@@ -463,6 +511,7 @@ impl<Eip4844: RlpEcdsaEncodableTx + Typed2718> RlpEcdsaEncodableTx
             Self::Eip1559(tx) => tx.rlp_encoded_fields_length(),
             Self::Eip4844(tx) => tx.rlp_encoded_fields_length(),
             Self::Eip7702(tx) => tx.rlp_encoded_fields_length(),
+            Self::Goat(tx) => tx.rlp_encoded_fields_length(),
         }
     }
 
@@ -473,6 +522,7 @@ impl<Eip4844: RlpEcdsaEncodableTx + Typed2718> RlpEcdsaEncodableTx
             Self::Eip1559(tx) => tx.rlp_encode_fields(out),
             Self::Eip4844(tx) => tx.rlp_encode_fields(out),
             Self::Eip7702(tx) => tx.rlp_encode_fields(out),
+            Self::Goat(tx) => tx.rlp_encode_fields(out),
         }
     }
 
@@ -483,6 +533,7 @@ impl<Eip4844: RlpEcdsaEncodableTx + Typed2718> RlpEcdsaEncodableTx
             Self::Eip1559(tx) => tx.eip2718_encode_with_type(signature, tx.ty(), out),
             Self::Eip4844(tx) => tx.eip2718_encode_with_type(signature, tx.ty(), out),
             Self::Eip7702(tx) => tx.eip2718_encode_with_type(signature, tx.ty(), out),
+            Self::Goat(tx) => tx.eip2718_encode_with_type(signature, tx.ty(), out),
         }
     }
 
@@ -493,6 +544,7 @@ impl<Eip4844: RlpEcdsaEncodableTx + Typed2718> RlpEcdsaEncodableTx
             Self::Eip1559(tx) => tx.eip2718_encode(signature, out),
             Self::Eip4844(tx) => tx.eip2718_encode(signature, out),
             Self::Eip7702(tx) => tx.eip2718_encode(signature, out),
+            Self::Goat(tx) => tx.eip2718_encode(signature, out),
         }
     }
 
@@ -503,6 +555,7 @@ impl<Eip4844: RlpEcdsaEncodableTx + Typed2718> RlpEcdsaEncodableTx
             Self::Eip1559(tx) => tx.network_encode_with_type(signature, tx.ty(), out),
             Self::Eip4844(tx) => tx.network_encode_with_type(signature, tx.ty(), out),
             Self::Eip7702(tx) => tx.network_encode_with_type(signature, tx.ty(), out),
+            Self::Goat(tx) => tx.network_encode_with_type(signature, tx.ty(), out),
         }
     }
 
@@ -513,6 +566,7 @@ impl<Eip4844: RlpEcdsaEncodableTx + Typed2718> RlpEcdsaEncodableTx
             Self::Eip1559(tx) => tx.network_encode(signature, out),
             Self::Eip4844(tx) => tx.network_encode(signature, out),
             Self::Eip7702(tx) => tx.network_encode(signature, out),
+            Self::Goat(tx) => tx.network_encode(signature, out),
         }
     }
 
@@ -523,6 +577,7 @@ impl<Eip4844: RlpEcdsaEncodableTx + Typed2718> RlpEcdsaEncodableTx
             Self::Eip1559(tx) => tx.tx_hash_with_type(signature, tx.ty()),
             Self::Eip4844(tx) => tx.tx_hash_with_type(signature, tx.ty()),
             Self::Eip7702(tx) => tx.tx_hash_with_type(signature, tx.ty()),
+            Self::Goat(tx) => tx.tx_hash_with_type(signature, tx.ty()),
         }
     }
 
@@ -533,6 +588,7 @@ impl<Eip4844: RlpEcdsaEncodableTx + Typed2718> RlpEcdsaEncodableTx
             Self::Eip1559(tx) => tx.tx_hash(signature),
             Self::Eip4844(tx) => tx.tx_hash(signature),
             Self::Eip7702(tx) => tx.tx_hash(signature),
+            Self::Goat(tx) => tx.tx_hash(signature),
         }
     }
 }
@@ -547,6 +603,7 @@ impl<Eip4844: SignableTransaction<Signature>> SignableTransaction<Signature>
             Self::Eip1559(tx) => tx.set_chain_id(chain_id),
             Self::Eip4844(tx) => tx.set_chain_id(chain_id),
             Self::Eip7702(tx) => tx.set_chain_id(chain_id),
+            Self::Goat(tx) => tx.set_chain_id(chain_id),
         }
     }
 
@@ -557,6 +614,7 @@ impl<Eip4844: SignableTransaction<Signature>> SignableTransaction<Signature>
             Self::Eip1559(tx) => tx.encode_for_signing(out),
             Self::Eip4844(tx) => tx.encode_for_signing(out),
             Self::Eip7702(tx) => tx.encode_for_signing(out),
+            Self::Goat(tx) => tx.encode_for_signing(out),
         }
     }
 
@@ -567,6 +625,7 @@ impl<Eip4844: SignableTransaction<Signature>> SignableTransaction<Signature>
             Self::Eip1559(tx) => tx.payload_len_for_signature(),
             Self::Eip4844(tx) => tx.payload_len_for_signature(),
             Self::Eip7702(tx) => tx.payload_len_for_signature(),
+            Self::Goat(tx) => tx.payload_len_for_signature(),
         }
     }
 }
@@ -603,7 +662,7 @@ mod serde_from {
     //!
     //! We serialize via [`TaggedTypedTransaction`] and deserialize via
     //! [`MaybeTaggedTypedTransaction`].
-    use crate::{EthereumTypedTransaction, TxEip1559, TxEip2930, TxEip7702, TxLegacy};
+    use crate::{EthereumTypedTransaction, TxEip1559, TxEip2930, TxEip7702, TxGoat, TxLegacy};
 
     #[derive(Debug, serde::Deserialize)]
     #[serde(untagged)]
@@ -635,6 +694,9 @@ mod serde_from {
         /// EIP-7702 transaction
         #[serde(rename = "0x04", alias = "0x4")]
         Eip7702(TxEip7702),
+        /// Goat system transaction
+        #[serde(rename = "0x60", alias = "0x60")]
+        Goat(TxGoat),
     }
 
     impl<Eip4844> From<MaybeTaggedTypedTransaction<Eip4844>> for EthereumTypedTransaction<Eip4844> {
@@ -654,6 +716,7 @@ mod serde_from {
                 TaggedTypedTransaction::Eip1559(signed) => Self::Eip1559(signed),
                 TaggedTypedTransaction::Eip4844(signed) => Self::Eip4844(signed),
                 TaggedTypedTransaction::Eip7702(signed) => Self::Eip7702(signed),
+                TaggedTypedTransaction::Goat(signed) => Self::Goat(signed),
             }
         }
     }
@@ -666,6 +729,7 @@ mod serde_from {
                 EthereumTypedTransaction::Eip1559(signed) => Self::Eip1559(signed),
                 EthereumTypedTransaction::Eip4844(signed) => Self::Eip4844(signed),
                 EthereumTypedTransaction::Eip7702(signed) => Self::Eip7702(signed),
+                EthereumTypedTransaction::Goat(signed) => Self::Goat(signed),
             }
         }
     }
@@ -707,6 +771,8 @@ pub(crate) mod serde_bincode_compat {
         Eip4844(Cow<'a, Eip4844>),
         /// EIP-7702 transaction
         Eip7702(crate::serde_bincode_compat::transaction::TxEip7702<'a>),
+        /// Goat system transaction
+        Goat(crate::transaction::goat::serde_bincode_compat::TxGoat<'a>),
     }
 
     impl<'a, T: Clone> From<&'a super::EthereumTypedTransaction<T>>
@@ -719,6 +785,7 @@ pub(crate) mod serde_bincode_compat {
                 super::EthereumTypedTransaction::Eip1559(tx) => Self::Eip1559(tx.into()),
                 super::EthereumTypedTransaction::Eip4844(tx) => Self::Eip4844(Cow::Borrowed(tx)),
                 super::EthereumTypedTransaction::Eip7702(tx) => Self::Eip7702(tx.into()),
+                super::EthereumTypedTransaction::Goat(tx) => Self::Goat(tx.into()),
             }
         }
     }
@@ -731,6 +798,7 @@ pub(crate) mod serde_bincode_compat {
                 EthereumTypedTransaction::Eip1559(tx) => Self::Eip1559(tx.into()),
                 EthereumTypedTransaction::Eip4844(tx) => Self::Eip4844(tx.into_owned()),
                 EthereumTypedTransaction::Eip7702(tx) => Self::Eip7702(tx.into()),
+                EthereumTypedTransaction::Goat(tx) => Self::Goat(tx.into()),
             }
         }
     }

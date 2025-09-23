@@ -3,7 +3,8 @@ use alloc::vec::Vec;
 use alloy_eips::{
     eip2718::{
         Decodable2718, Eip2718Error, Eip2718Result, Encodable2718, IsTyped2718, EIP1559_TX_TYPE_ID,
-        EIP2930_TX_TYPE_ID, EIP4844_TX_TYPE_ID, EIP7702_TX_TYPE_ID, LEGACY_TX_TYPE_ID,
+        EIP2930_TX_TYPE_ID, EIP4844_TX_TYPE_ID, EIP7702_TX_TYPE_ID, GOAT_TX_TYPE_ID,
+        LEGACY_TX_TYPE_ID,
     },
     Typed2718,
 };
@@ -49,6 +50,9 @@ pub enum ReceiptEnvelope<T = Log> {
     /// [EIP-7702]: https://eips.ethereum.org/EIPS/eip-7702
     #[cfg_attr(feature = "serde", serde(rename = "0x4", alias = "0x04"))]
     Eip7702(ReceiptWithBloom<Receipt<T>>),
+    /// Receipt envelope with type flag 0x60, containing a [Goat] receipt.
+    #[cfg_attr(feature = "serde", serde(rename = "0x60", alias = "0x60"))]
+    Goat(ReceiptWithBloom<Receipt<T>>),
 }
 
 impl<T> ReceiptEnvelope<T> {
@@ -63,6 +67,7 @@ impl<T> ReceiptEnvelope<T> {
             TxType::Eip1559 => Self::Eip1559(receipt.into()),
             TxType::Eip4844 => Self::Eip4844(receipt.into()),
             TxType::Eip7702 => Self::Eip7702(receipt.into()),
+            TxType::Goat => Self::Goat(receipt.into()),
         }
     }
 
@@ -76,6 +81,7 @@ impl<T> ReceiptEnvelope<T> {
             Self::Eip1559(r) => ReceiptEnvelope::Eip1559(r.map_logs(f)),
             Self::Eip4844(r) => ReceiptEnvelope::Eip4844(r.map_logs(f)),
             Self::Eip7702(r) => ReceiptEnvelope::Eip7702(r.map_logs(f)),
+            Self::Goat(r) => ReceiptEnvelope::Goat(r.map_logs(f)),
         }
     }
 
@@ -100,6 +106,7 @@ impl<T> ReceiptEnvelope<T> {
             Self::Eip1559(_) => TxType::Eip1559,
             Self::Eip4844(_) => TxType::Eip4844,
             Self::Eip7702(_) => TxType::Eip7702,
+            Self::Goat(_) => TxType::Goat,
         }
     }
 
@@ -141,7 +148,8 @@ impl<T> ReceiptEnvelope<T> {
             | Self::Eip2930(t)
             | Self::Eip1559(t)
             | Self::Eip4844(t)
-            | Self::Eip7702(t) => Some(t),
+            | Self::Eip7702(t)
+            | Self::Goat(t) => Some(t),
         }
     }
 
@@ -153,7 +161,8 @@ impl<T> ReceiptEnvelope<T> {
             | Self::Eip2930(t)
             | Self::Eip1559(t)
             | Self::Eip4844(t)
-            | Self::Eip7702(t) => Some(t),
+            | Self::Eip7702(t)
+            | Self::Goat(t) => Some(t),
         }
     }
 
@@ -164,7 +173,8 @@ impl<T> ReceiptEnvelope<T> {
             | Self::Eip2930(t)
             | Self::Eip1559(t)
             | Self::Eip4844(t)
-            | Self::Eip7702(t) => t.receipt,
+            | Self::Eip7702(t)
+            | Self::Goat(t) => t.receipt,
         }
     }
 
@@ -176,7 +186,8 @@ impl<T> ReceiptEnvelope<T> {
             | Self::Eip2930(t)
             | Self::Eip1559(t)
             | Self::Eip4844(t)
-            | Self::Eip7702(t) => Some(&t.receipt),
+            | Self::Eip7702(t)
+            | Self::Goat(t) => Some(&t.receipt),
         }
     }
 }
@@ -263,6 +274,7 @@ impl Typed2718 for ReceiptEnvelope {
             Self::Eip1559(_) => EIP1559_TX_TYPE_ID,
             Self::Eip4844(_) => EIP4844_TX_TYPE_ID,
             Self::Eip7702(_) => EIP7702_TX_TYPE_ID,
+            Self::Goat(_) => GOAT_TX_TYPE_ID,
         }
     }
 }
@@ -295,6 +307,7 @@ impl Decodable2718 for ReceiptEnvelope {
             TxType::Eip1559 => Ok(Self::Eip1559(receipt)),
             TxType::Eip4844 => Ok(Self::Eip4844(receipt)),
             TxType::Eip7702 => Ok(Self::Eip7702(receipt)),
+            TxType::Goat => Ok(Self::Goat(receipt)),
             TxType::Legacy => Err(Eip2718Error::UnexpectedType(0)),
         }
     }
@@ -318,6 +331,7 @@ where
             2 => Ok(Self::Eip1559(receipt)),
             3 => Ok(Self::Eip4844(receipt)),
             4 => Ok(Self::Eip7702(receipt)),
+            0x60 => Ok(Self::Goat(receipt)),
             _ => unreachable!(),
         }
     }
@@ -395,6 +409,7 @@ pub(crate) mod serde_bincode_compat {
                 TxType::Eip1559 => Self::Eip1559(receipt),
                 TxType::Eip4844 => Self::Eip4844(receipt),
                 TxType::Eip7702 => Self::Eip7702(receipt),
+                TxType::Goat => Self::Goat(receipt),
             }
         }
     }
