@@ -11,7 +11,7 @@ use super::{RlpEcdsaDecodableTx, RlpEcdsaEncodableTx};
 use crate::{SignableTransaction, Transaction, TxType};
 
 const GOAT_CHAIN_ID: u64 = 2345;
- #[cfg(feature = "goat-testnet")]
+#[cfg(feature = "goat-testnet")]
 const GOAT_TESTNET_CHAIN_ID: u64 = 48816;
 
 /// A transaction with a priority fee (Goat).

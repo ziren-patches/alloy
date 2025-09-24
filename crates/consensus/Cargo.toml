@@ -44,6 +44,7 @@ rand = { workspace = true, optional = true }
 # serde
 serde = { workspace = true, features = ["derive"], optional = true }
 serde_with = { workspace = true, optional = true }
+serde_json = { workspace = true, optional = true }
 
 # misc
 derive_more = { workspace = true, features = [
@@ -93,6 +94,7 @@ arbitrary = [
 	"std",
 	"dep:rand",
 	"dep:arbitrary",
+	"dep:serde_json",
 	"alloy-eips/arbitrary",
 	"alloy-primitives/arbitrary",
 	"alloy-serde?/arbitrary",

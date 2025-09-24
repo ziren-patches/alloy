@@ -1007,12 +1007,12 @@ mod serde_from {
         where
             D: serde::Deserializer<'de>,
         {
-            let content = serde::__private::de::Content::deserialize(deserializer)?;
-            let deserializer =
-                serde::__private::de::ContentRefDeserializer::<D::Error>::new(&content);
+            let value = serde_json::Value::deserialize(deserializer)?;
+            let deserializer = &value;
 
-            let tagged_res =
-                TaggedTxEnvelope::deserialize(deserializer).map(MaybeTaggedTxEnvelope::Tagged);
+            let tagged_res = TaggedTxEnvelope::deserialize(deserializer)
+                .map(MaybeTaggedTxEnvelope::Tagged)
+                .map_err(serde::de::Error::custom);
 
             if tagged_res.is_ok() {
                 // return tagged if successful
