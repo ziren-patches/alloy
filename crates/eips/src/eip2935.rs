@@ -10,6 +10,10 @@ pub const HISTORY_STORAGE_ADDRESS: Address = address!("0x0000F90827F1C53a10cb7A0
 /// The code for the EIP-2935 history storage contract.
 pub static HISTORY_STORAGE_CODE: Bytes = bytes!("3373fffffffffffffffffffffffffffffffffffffffe14604657602036036042575f35600143038111604257611fff81430311604257611fff9006545f5260205ff35b5f5ffd5b5f35611fff60014303065500");
 
+/// The address for the GOAT history storage contract.
+pub const GOAT_HISTORY_STORAGE_ADDRESS: Address =
+    address!("BA11eE51ecC770fC9aCdC6F2ad91528549a071De");
+
 /// EIP-2935: Serve historical block hashes from state
 ///
 /// Number of block hashes the EVM can access in the past (Prague).
