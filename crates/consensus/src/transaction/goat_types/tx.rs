@@ -32,28 +32,6 @@ impl Default for TxGoatInner {
 }
 
 impl TxGoatInner {
-    pub fn sender(&self) -> Address {
-        match &self {
-            Self::NewBtcBlockTx(tx) => tx.sender(),
-            Self::CompleteUnlockTx(tx) => tx.sender(),
-            Self::DistributeRewardTx(tx) => tx.sender(),
-            Self::DepositTx(tx) => tx.sender(),
-            Self::Cancel2Tx(tx) => tx.sender(),
-            Self::PaidTx(tx) => tx.sender(),
-        }
-    }
-
-    pub fn to(&self) -> Address {
-        match &self {
-            Self::NewBtcBlockTx(tx) => tx.contract(),
-            Self::CompleteUnlockTx(tx) => tx.contract(),
-            Self::DistributeRewardTx(tx) => tx.contract(),
-            Self::DepositTx(tx) => tx.contract(),
-            Self::Cancel2Tx(tx) => tx.contract(),
-            Self::PaidTx(tx) => tx.contract(),
-        }
-    }
-
     pub fn deposit(&self) -> Option<Mint> {
         match &self {
             Self::NewBtcBlockTx(tx) => tx.deposit(),
@@ -74,6 +52,42 @@ impl TxGoatInner {
             Self::Cancel2Tx(tx) => tx.withdraw(),
             Self::PaidTx(tx) => tx.withdraw(),
         }
+    }
+}
+
+pub fn goat_tx_sender(module: Module, action: Action) -> Address {
+    match module {
+        BIRDGE_MODULE => match action {
+            BITCOIN_NEW_BLOCK_ACTION => NewBtcBlockTx::SENDER,
+            BRIDGE_CANCEL2_ACTION => Cancel2Tx::SENDER,
+            BRIDGE_DEPOIT_ACTION => DepositTx::SENDER,
+            BRIDGE_PAID_ACTION => PaidTx::SENDER,
+            _ => unreachable!(),
+        },
+        LOCKING_MODULE => match action {
+            LOCKING_COMPLETE_UNLOCK_ACTION => CompleteUnlockTx::SENDER,
+            LOCKING_DISTRIBUTE_REWARD_ACTION => DistributeRewardTx::SENDER,
+            _ => unreachable!(),
+        },
+        _ => unreachable!(),
+    }
+}
+
+pub fn goat_tx_to(module: Module, action: Action) -> Address {
+    match module {
+        BIRDGE_MODULE => match action {
+            BITCOIN_NEW_BLOCK_ACTION => NewBtcBlockTx::CONTRACT,
+            BRIDGE_CANCEL2_ACTION => Cancel2Tx::CONTRACT,
+            BRIDGE_DEPOIT_ACTION => DepositTx::CONTRACT,
+            BRIDGE_PAID_ACTION => PaidTx::CONTRACT,
+            _ => unreachable!(),
+        },
+        LOCKING_MODULE => match action {
+            LOCKING_COMPLETE_UNLOCK_ACTION => CompleteUnlockTx::CONTRACT,
+            LOCKING_DISTRIBUTE_REWARD_ACTION => DistributeRewardTx::CONTRACT,
+            _ => unreachable!(),
+        },
+        _ => unreachable!(),
     }
 }
 

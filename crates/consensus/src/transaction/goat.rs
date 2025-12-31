@@ -45,11 +45,11 @@ impl TxGoat {
     }
 
     pub fn sender(&self) -> Address {
-        self.inner.sender()
+        goat_tx_sender(self.module, self.action)
     }
 
     pub fn to(&self) -> Address {
-        self.inner.to()
+        goat_tx_to(self.module, self.action)
     }
 
     pub fn deposit(&self) -> Option<Mint> {
@@ -163,7 +163,7 @@ impl Transaction for TxGoat {
 
     #[inline]
     fn kind(&self) -> TxKind {
-        self.inner.to().into()
+        goat_tx_to(self.module, self.action).into()
     }
 
     #[inline]
