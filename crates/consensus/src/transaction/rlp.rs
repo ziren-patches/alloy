@@ -37,9 +37,33 @@ pub trait RlpEcdsaEncodableTx: Sized + Typed2718 {
     }
 
     /// Create an rlp list header for the signed transaction.
+    /// The signature of a transaction in the goat system is empty.
+    /// eg.
+    /// {
+    /// 	"blockHash": "0x3eab36b7288cccd6cb988c78106b4bac08e97a5d1944b35ceff9a3a99fedb0a7",
+    /// 	"blockNumber": "0x97cbe9",
+    /// 	"from": "0xbc10000000000000000000000000000000001000",
+    /// 	"gas": "0x0",
+    /// 	"gasPrice": "0x0",
+    /// 	"hash": "0xf0dd179be9dc2baec239029d08be1a40e7adca079bb200d4a8816236fc572677",
+    /// 	"input": "0x94f490bdd5c5e8b99bd6e075fe820ef77a955cd1af738c9f6830e3d72600000000000000",
+    /// 	"nonce": "0x150604",
+    /// 	"to": "0xbc10000000000000000000000000000000000005",
+    /// 	"transactionIndex": "0x0",
+    /// 	"value": "0x0",
+    /// 	"type": "0x60",
+    /// 	"v": "0x0",
+    /// 	"r": "0x0",
+    /// 	"s": "0x0",
+    /// 	"module": 1,
+    /// 	"action": 4
+    /// }
     fn rlp_header_signed(&self, signature: &Signature) -> Header {
-        let payload_length =
-            self.rlp_encoded_fields_length() + signature.rlp_rs_len() + signature.v().length();
+        let payload_length = if self.is_goat() {
+            self.rlp_encoded_fields_length()
+        } else {
+            self.rlp_encoded_fields_length() + signature.rlp_rs_len() + signature.v().length()
+        };
         Header { list: true, payload_length }
     }
 
@@ -53,7 +77,9 @@ pub trait RlpEcdsaEncodableTx: Sized + Typed2718 {
     fn rlp_encode_signed(&self, signature: &Signature, out: &mut dyn BufMut) {
         self.rlp_header_signed(signature).encode(out);
         self.rlp_encode_fields(out);
-        signature.write_rlp_vrs(out, signature.v());
+        if !self.is_goat() {
+            signature.write_rlp_vrs(out, signature.v());
+        }
     }
 
     /// Get the length of the transaction when EIP-2718 encoded. This is the

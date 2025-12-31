@@ -22,6 +22,10 @@ impl DepositTx {
     pub const METHOD_ID: [u8; 4] = [0x90, 0x41, 0x83, 0xcb];
 
     pub const SIZE: usize = 164;
+
+    pub const SENDER: Address = RELAYER_EXECUTOR;
+
+    pub const CONTRACT: Address = BRIDGE_CONTRACT;
 }
 
 impl GoatTx for DepositTx {
@@ -106,6 +110,10 @@ impl Cancel2Tx {
     pub const METHOD_ID: [u8; 4] = [0xc1, 0x9d, 0xd3, 0x20];
 
     pub const SIZE: usize = 36;
+
+    pub const SENDER: Address = RELAYER_EXECUTOR;
+
+    pub const CONTRACT: Address = BRIDGE_CONTRACT;
 }
 
 impl GoatTx for Cancel2Tx {
@@ -171,6 +179,10 @@ impl PaidTx {
     pub const METHOD_ID: [u8; 4] = [0xb6, 0x70, 0xab, 0x5e];
 
     pub const SIZE: usize = 132;
+
+    pub const SENDER: Address = RELAYER_EXECUTOR;
+
+    pub const CONTRACT: Address = BRIDGE_CONTRACT;
 }
 
 impl GoatTx for PaidTx {
@@ -253,6 +265,10 @@ impl NewBtcBlockTx {
 
     /// Tx size
     pub const SIZE: usize = 36;
+
+    pub const SENDER: Address = RELAYER_EXECUTOR;
+
+    pub const CONTRACT: Address = BITCOINT_CONTRACT;
 }
 
 impl GoatTx for NewBtcBlockTx {

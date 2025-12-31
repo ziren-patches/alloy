@@ -194,7 +194,7 @@ pub enum EthereumTxEnvelope<Eip4844> {
     #[envelope(ty = 4)]
     Eip7702(Signed<TxEip7702>),
     /// A [`TxGoat`] tagged with type 5.
-    #[envelope(ty = 5)]
+    #[envelope(ty = 0x60)]
     Goat(Signed<TxGoat>),
 }
 
@@ -517,7 +517,7 @@ where
             Self::Eip1559(tx) => crate::transaction::SignerRecoverable::recover_signer(tx),
             Self::Eip4844(tx) => crate::transaction::SignerRecoverable::recover_signer(tx),
             Self::Eip7702(tx) => crate::transaction::SignerRecoverable::recover_signer(tx),
-            Self::Goat(tx) => crate::transaction::SignerRecoverable::recover_signer(tx),
+            Self::Goat(tx) => Ok(tx.tx().sender()),
         }
     }
 

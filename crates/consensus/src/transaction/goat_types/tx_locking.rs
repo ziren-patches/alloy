@@ -21,6 +21,10 @@ impl CompleteUnlockTx {
     pub const METHOD_ID: [u8; 4] = [0x00, 0xab, 0xa5, 0x1a];
 
     pub const SIZE: usize = 132;
+
+    pub const SENDER: Address = LOCKING_EXECUTOR;
+
+    pub const CONTRACT: Address = LOCKING_CONTRACT;
 }
 
 impl GoatTx for CompleteUnlockTx {
@@ -105,6 +109,10 @@ impl DistributeRewardTx {
     pub const METHOD_ID: [u8; 4] = [0xbd, 0x9f, 0xad, 0xb5];
 
     pub const SIZE: usize = 132;
+
+    pub const SENDER: Address = LOCKING_EXECUTOR;
+
+    pub const CONTRACT: Address = LOCKING_CONTRACT;
 }
 
 impl GoatTx for DistributeRewardTx {
